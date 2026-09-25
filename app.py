@@ -12,6 +12,8 @@ from src.gemini_client import (
     get_text_embedding,
     get_embeddings_for_chunks,
     generate_answer_stream,
+    set_working_models,
+    get_working_models,
 )
 from src.pdf_processor import process_pdf, MAX_FILE_SIZE_MB
 from src.vector_store import (
@@ -44,6 +46,12 @@ if "chat_history" not in st.session_state:
 
 if "processed_files" not in st.session_state:
     st.session_state["processed_files"] = set()
+
+if "working_chat_model" not in st.session_state:
+    st.session_state["working_chat_model"] = None
+
+if "working_embedding_model" not in st.session_state:
+    st.session_state["working_embedding_model"] = None
 
 
 # -----------------------------------------------------------------------------
@@ -94,7 +102,10 @@ def render_setup_screen():
                 if is_valid:
                     st.session_state["gemini_api_key"] = clean_key
                     st.session_state["gemini_client"] = create_gemini_client(clean_key)
-                    st.success("Connected successfully! Opening your workspace...")
+                    chat_mod, emb_mod = get_working_models()
+                    st.session_state["working_chat_model"] = chat_mod
+                    st.session_state["working_embedding_model"] = emb_mod
+                    st.success(f"Connected successfully! (Using {chat_mod})")
                     st.rerun()
                 elif "network" in message.lower():
                     st.warning(message)
@@ -107,6 +118,13 @@ def render_setup_screen():
 # -----------------------------------------------------------------------------
 def render_chat_screen():
     """Display the main Notes Chat screen once authenticated."""
+    # Ensure working models are active for this session
+    if st.session_state.get("working_chat_model"):
+        set_working_models(
+            st.session_state["working_chat_model"],
+            st.session_state.get("working_embedding_model"),
+        )
+
     # Header Bar
     head_col1, head_col2 = st.columns([3, 1])
     with head_col1:
@@ -114,7 +132,8 @@ def render_chat_screen():
         st.caption("Chat with your notes — strictly grounded with page citations")
     with head_col2:
         st.markdown("<div style='text-align: right; padding-top: 15px;'>", unsafe_allow_html=True)
-        st.markdown("🟢 **Gemini Connected**")
+        active_model = st.session_state.get("working_chat_model") or "Gemini"
+        st.markdown(f"🟢 **Connected ({active_model})**")
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
@@ -131,6 +150,8 @@ def render_chat_screen():
             st.session_state["gemini_client"] = None
             st.session_state["chat_history"] = []
             st.session_state["processed_files"] = set()
+            st.session_state["working_chat_model"] = None
+            st.session_state["working_embedding_model"] = None
             st.rerun()
 
         st.markdown("---")
@@ -152,7 +173,8 @@ def render_chat_screen():
             ]
 
             if new_files_to_process:
-                process_btn = st.button("Index Uploaded Notes", type="primary", use_container_width=True)
+                st.warning(f"⚠️ {len(new_files_to_process)} uploaded note(s) not yet indexed. Click below:")
+                process_btn = st.button("⚡ Index Uploaded Notes Now", type="primary", use_container_width=True)
                 if process_btn:
                     client = st.session_state["gemini_client"]
                     for uploaded_file in new_files_to_process:

@@ -12,7 +12,7 @@ from src.vector_store import search_similar_chunks, get_total_chunk_count
 
 # Configurable constants
 NOT_FOUND_MESSAGE = "Not found in your notes"
-MAX_RELEVANCE_DISTANCE = 0.65  # Cosine distance cutoff (smaller = closer, > 0.65 considered irrelevant)
+MAX_RELEVANCE_DISTANCE = 0.95  # Cosine distance cutoff (smaller = closer, > 0.95 considered irrelevant)
 DEFAULT_RETRIEVAL_K = 4
 
 # Strict grounding prompt template

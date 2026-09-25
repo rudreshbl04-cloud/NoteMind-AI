@@ -16,6 +16,24 @@ WORKING_EMBEDDING_MODEL: Optional[str] = None
 _CACHED_AVAILABLE_MODELS: Optional[Tuple[List[str], List[str]]] = None
 
 
+def set_working_models(chat_model: Optional[str] = None, embedding_model: Optional[str] = None) -> None:
+    """Set the globally active models discovered for the current session."""
+    global WORKING_CHAT_MODEL, WORKING_EMBEDDING_MODEL
+    if chat_model:
+        WORKING_CHAT_MODEL = chat_model
+    if embedding_model:
+        WORKING_EMBEDDING_MODEL = embedding_model
+
+
+def get_working_models() -> Tuple[str, str]:
+    """Retrieve currently active chat and embedding model names."""
+    global WORKING_CHAT_MODEL, WORKING_EMBEDDING_MODEL
+    return (
+        WORKING_CHAT_MODEL or "gemini-1.5-flash",
+        WORKING_EMBEDDING_MODEL or "gemini-embedding-001",
+    )
+
+
 def clean_api_key(api_key: str) -> str:
     """Sanitize user-entered API key by stripping quotes, whitespace, and variable prefixes."""
     if not api_key:

@@ -1,0 +1,35 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Local vector database storage
+data/chroma/
+data/test_chroma/
+*.sqlite3
+
+# Python caches and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing and IDE caches
+.pytest_cache/
+.coverage
+htmlcov/
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db

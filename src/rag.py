@@ -12,11 +12,17 @@ from src.vector_store import search_similar_chunks, get_total_chunk_count
 
 # Configurable constants
 NOT_FOUND_MESSAGE = "Not found in your notes"
-MAX_RELEVANCE_DISTANCE = 0.95  # Cosine distance cutoff (smaller = closer, > 0.95 considered irrelevant)
-DEFAULT_RETRIEVAL_K = 4
+MAX_RELEVANCE_DISTANCE = 1.35  # Cosine distance cutoff (smaller = closer, > 1.35 considered irrelevant)
+DEFAULT_RETRIEVAL_K = 5
 
 # Strict grounding prompt template
-RAG_PROMPT_TEMPLATE = """You are answering questions about the user's uploaded notes. Use only the supplied note context. If the context does not contain enough information to answer the question, respond exactly with: Not found in your notes. Do not use outside knowledge or invent facts.
+RAG_PROMPT_TEMPLATE = """You are NoteMind AI, an accurate study assistant answering questions based strictly on the student's uploaded notes.
+
+Instructions:
+1. Base your answer ONLY on the provided Note Context excerpts below.
+2. Provide a clear, thorough, and helpful answer explaining the relevant concepts found in the excerpts.
+3. If the Note Context truly does not mention or contain information about the topic asked, respond with: "Not found in your notes."
+4. Do not invent facts or use outside knowledge not supported by the context.
 
 === NOTE CONTEXT ===
 {context_text}
@@ -135,7 +141,7 @@ def answer_question(
         }
 
     cleaned_answer = raw_answer.strip()
-    if NOT_FOUND_MESSAGE.lower() in cleaned_answer.lower() or not cleaned_answer:
+    if cleaned_answer.lower().startswith(NOT_FOUND_MESSAGE.lower()) or not cleaned_answer:
         return {
             "answer": NOT_FOUND_MESSAGE,
             "sources": [],

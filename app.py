@@ -165,7 +165,7 @@ def render_chat_screen():
             help="Upload lecture notes, textbooks, or study materials.",
         )
 
-        # Indexing logic for newly uploaded files
+        # Auto-indexing logic for newly uploaded files
         if uploaded_files:
             new_files_to_process = [
                 f for f in uploaded_files
@@ -173,30 +173,28 @@ def render_chat_screen():
             ]
 
             if new_files_to_process:
-                st.warning(f"⚠️ {len(new_files_to_process)} uploaded note(s) not yet indexed. Click below:")
-                process_btn = st.button("⚡ Index Uploaded Notes Now", type="primary", use_container_width=True)
-                if process_btn:
-                    client = st.session_state["gemini_client"]
-                    for uploaded_file in new_files_to_process:
-                        file_bytes = uploaded_file.getvalue()
-                        fname = uploaded_file.name
+                client = st.session_state["gemini_client"]
+                for uploaded_file in new_files_to_process:
+                    file_bytes = uploaded_file.getvalue()
+                    fname = uploaded_file.name
 
-                        with st.spinner(f"Reading '{fname}'..."):
-                            chunks, err = process_pdf(file_bytes, fname)
+                    with st.spinner(f"Reading '{fname}'..."):
+                        chunks, err = process_pdf(file_bytes, fname)
 
-                        if err:
-                            st.error(err)
-                            continue
+                    if err:
+                        st.error(err)
+                        st.session_state["processed_files"].add(fname)
+                        continue
 
-                        with st.spinner(f"Generating embeddings for {len(chunks)} chunks in '{fname}'..."):
-                            try:
-                                chunk_texts = [c["text"] for c in chunks]
-                                embeddings = get_embeddings_for_chunks(chunk_texts, client)
-                                add_chunks_to_vector_store(chunks, embeddings)
-                                st.session_state["processed_files"].add(fname)
-                                st.success(f"Indexed '{fname}' ({len(chunks)} chunks)")
-                            except Exception as e:
-                                st.error(f"Embedding failed for '{fname}': {str(e)}")
+                    with st.spinner(f"Indexing '{fname}' ({len(chunks)} sections)..."):
+                        try:
+                            chunk_texts = [c["text"] for c in chunks]
+                            embeddings = get_embeddings_for_chunks(chunk_texts, client)
+                            add_chunks_to_vector_store(chunks, embeddings)
+                            st.session_state["processed_files"].add(fname)
+                            st.success(f"Indexed '{fname}' ({len(chunks)} sections ready)")
+                        except Exception as e:
+                            st.error(f"Embedding failed for '{fname}': {str(e)}")
 
         # Display currently indexed files
         st.markdown("---")
@@ -288,7 +286,7 @@ def render_chat_screen():
                     )
                     answer_text = st.write_stream(stream_gen)
 
-                    if NOT_FOUND_MESSAGE.lower() in answer_text.lower():
+                    if answer_text.strip().lower().startswith(NOT_FOUND_MESSAGE.lower()):
                         sources = []
                 except Exception as e:
                     answer_text = f"Error generating answer: {str(e)}"

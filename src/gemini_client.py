@@ -124,6 +124,9 @@ def get_available_models(client: genai.Client, force_refresh: bool = False) -> T
 def validate_api_key(api_key: str) -> Tuple[bool, str]:
     """Perform a resilient check to verify the Gemini API key and discover available models.
 
+    Probes candidate chat and embedding models with lightweight requests to lock in
+    verified working models, eliminating trial-and-error latency during chat.
+
     Returns:
         (is_valid, message): A boolean flag and a beginner-friendly status message.
     """
@@ -139,17 +142,80 @@ def validate_api_key(api_key: str) -> Tuple[bool, str]:
         global WORKING_CHAT_MODEL, WORKING_EMBEDDING_MODEL
         chat_models, embed_models = get_available_models(client, force_refresh=True)
 
-        if chat_models:
-            WORKING_CHAT_MODEL = chat_models[0]
-        else:
-            WORKING_CHAT_MODEL = "gemini-1.5-flash"
+        # 1. Probe candidate chat models to guarantee instant response with no 404s
+        chat_candidates: List[str] = []
+        for preferred in [
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash-8b",
+            "gemini-2.0-flash-lite",
+            "gemini-2.5-flash",
+        ]:
+            if preferred in chat_models and preferred not in chat_candidates:
+                chat_candidates.append(preferred)
+        for m in chat_models:
+            if m not in chat_candidates:
+                chat_candidates.append(m)
+        if not chat_candidates:
+            chat_candidates = ["gemini-2.0-flash", "gemini-1.5-flash"]
 
-        if embed_models:
-            WORKING_EMBEDDING_MODEL = embed_models[0]
-        else:
-            WORKING_EMBEDDING_MODEL = "gemini-embedding-001"
+        working_chat = None
+        for cand in chat_candidates:
+            variants = [cand]
+            if not cand.startswith("models/"):
+                variants.append(f"models/{cand}")
+            for variant in variants:
+                try:
+                    client.models.generate_content(
+                        model=variant,
+                        contents="hi",
+                        config=types.GenerateContentConfig(max_output_tokens=1),
+                    )
+                    working_chat = variant
+                    break
+                except Exception:
+                    continue
+            if working_chat:
+                break
 
-        return True, f"Connected successfully! (Using {WORKING_CHAT_MODEL} & {WORKING_EMBEDDING_MODEL})"
+        WORKING_CHAT_MODEL = working_chat or (chat_models[0] if chat_models else "gemini-1.5-flash")
+
+        # 2. Probe candidate embedding models to guarantee embeddings succeed instantly
+        embed_candidates: List[str] = []
+        for preferred in ["gemini-embedding-001", "text-embedding-004", "text-embedding-005"]:
+            if preferred in embed_models and preferred not in embed_candidates:
+                embed_candidates.append(preferred)
+        for m in embed_models:
+            if m not in embed_candidates:
+                embed_candidates.append(m)
+        for fb in ["gemini-embedding-001", "text-embedding-004", "text-embedding-005"]:
+            if fb not in embed_candidates:
+                embed_candidates.append(fb)
+
+        working_emb = None
+        for cand in embed_candidates:
+            variants = [cand]
+            if not cand.startswith("models/"):
+                variants.append(f"models/{cand}")
+            for variant in variants:
+                try:
+                    res = client.models.embed_content(
+                        model=variant,
+                        contents="hi",
+                    )
+                    if getattr(res, "embeddings", None):
+                        working_emb = variant
+                        break
+                except Exception:
+                    continue
+            if working_emb:
+                break
+
+        WORKING_EMBEDDING_MODEL = working_emb or (embed_models[0] if embed_models else "gemini-embedding-001")
+
+        display_name = WORKING_CHAT_MODEL.replace("models/", "")
+        return True, f"Connected successfully! (Using {display_name})"
 
     except ClientError as e:
         error_msg = str(e).lower()

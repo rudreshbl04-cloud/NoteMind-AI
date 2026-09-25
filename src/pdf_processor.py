@@ -10,8 +10,8 @@ from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
 # Configuration constants
-CHUNK_SIZE = 500  # Target character length per chunk
-CHUNK_OVERLAP = 100  # Character overlap between adjacent chunks
+CHUNK_SIZE = 1000  # Target character length per chunk (preserves complete paragraphs)
+CHUNK_OVERLAP = 200  # Character overlap between adjacent chunks
 MAX_FILE_SIZE_MB = 15  # Maximum allowed file size in megabytes
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
